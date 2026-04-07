@@ -1,28 +1,10 @@
 "use server";
 
 import { getPublicEnv } from "@/lib/env";
-
-type SupabaseLike = {
-  from: (table: string) => ProfilesTable;
-};
-
-type ProfilesRow = { display_name: string | null } | null;
-
-type ProfilesSelectBuilder = {
-  eq: (column: "id", value: string) => ProfilesSelectBuilder;
-  maybeSingle: () => Promise<{ data: ProfilesRow }>;
-};
-
-type ProfilesTable = {
-  select: (columns: "display_name") => ProfilesSelectBuilder;
-  upsert: (
-    values: Record<string, unknown>,
-    opts?: { onConflict?: string },
-  ) => Promise<unknown>;
-};
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function ensureProfile(
-  supabase: SupabaseLike,
+  supabase: SupabaseClient,
   user: { id: string; email?: string | null },
 ) {
   const { NEXT_PUBLIC_FAMILY_ID } = getPublicEnv();

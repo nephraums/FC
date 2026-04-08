@@ -23,6 +23,9 @@ export type FamilyItem = {
   ai_model: string | null;
   ai_error: string | null;
   created_by: string | null;
+  source: "web" | "whatsapp";
+  whatsapp_from: string | null;
   created_at: string;
   updated_at: string;
 };
+

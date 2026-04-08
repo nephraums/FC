@@ -1,35 +1,3 @@
-Family Command Centre (MVP)
-
-## Setup (Supabase + OpenAI)
-
-### Environment variables
-
-1. Copy `.env.example` to `.env.local`
-2. Fill in:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `NEXT_PUBLIC_FAMILY_ID` (UUID)
-   - `NEXT_PUBLIC_SITE_URL` (important for magic link redirects)
-   - `GEMINI_API_KEY` (optional; required only for AI enrichment)
-
-Tip: In the app, open `/settings` and use the UUID helper to generate/copy a `NEXT_PUBLIC_FAMILY_ID`.
-
-### Supabase database
-
-1. Create a Supabase project
-2. Open Supabase **SQL Editor** and run `supabase/schema.sql`
-
-### Supabase Auth redirects (magic link)
-
-In Supabase **Authentication → URL Configuration**, add redirect URLs:
-
-- `http://localhost:3000/auth/callback`
-- `https://YOUR_VERCEL_DOMAIN/auth/callback`
-
-Also set `NEXT_PUBLIC_SITE_URL` to match (e.g. `http://localhost:3000` locally, your Vercel URL in production).
-
----
-
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

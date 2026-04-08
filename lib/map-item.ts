@@ -34,7 +34,11 @@ export function mapFamilyItem(row: Record<string, unknown>): FamilyItem {
     ai_model: row.ai_model == null ? null : String(row.ai_model),
     ai_error: row.ai_error == null ? null : String(row.ai_error),
     created_by: row.created_by == null ? null : String(row.created_by),
+    source: row.source === "whatsapp" ? "whatsapp" : "web",
+    whatsapp_from:
+      row.whatsapp_from == null ? null : String(row.whatsapp_from),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };
 }
+

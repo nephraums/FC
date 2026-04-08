@@ -39,12 +39,11 @@ function parseKindAndBody(raw: string): {
   return { kind: "message", body: trimmed, title: null };
 }
 
-function formDataToStringRecord(formData: FormData): Record<string, string> {
+function parseFormBody(body: string): Record<string, string> {
+  const sp = new URLSearchParams(body);
   const out: Record<string, string> = {};
-  for (const [key, value] of formData.entries()) {
-    if (typeof value === "string") {
-      out[key] = value;
-    }
+  for (const [k, v] of sp.entries()) {
+    out[k] = v;
   }
   return out;
 }
@@ -57,6 +56,11 @@ function emptyTwiML() {
       headers: { "Content-Type": "text/xml; charset=utf-8" },
     },
   );
+}
+
+export async function GET() {
+  // Healthcheck / easy browser verification (Twilio uses POST).
+  return NextResponse.json({ ok: true });
 }
 
 export async function POST(request: Request) {
@@ -72,26 +76,27 @@ export async function POST(request: Request) {
     );
   }
 
-  let formData: FormData;
+  let rawBody = "";
   try {
-    formData = await request.formData();
+    rawBody = await request.text();
   } catch {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const params = formDataToStringRecord(formData);
+  // Parse form body ourselves so we can validate against Twilio's signature using raw body.
+  // Twilio signatures are sensitive to exact decoding; validateRequestWithBody avoids mismatch.
+  const params = parseFormBody(rawBody);
   const signature = request.headers.get("x-twilio-signature") ?? "";
 
-  const publicUrl = process.env.TWILIO_WEBHOOK_PUBLIC_URL?.replace(/\/$/, "");
-  const requestUrl = new URL(request.url);
-  const validationUrl = publicUrl ?? `${requestUrl.origin}${requestUrl.pathname}`;
+  const publicUrl = process.env.TWILIO_WEBHOOK_PUBLIC_URL;
+  const validationUrl = publicUrl && publicUrl.length > 0 ? publicUrl : request.url;
 
   if (!skipVerify && authToken) {
-    const ok = twilio.validateRequest(
+    const ok = twilio.validateRequestWithBody(
       authToken,
       signature,
       validationUrl,
-      params,
+      rawBody,
     );
     if (!ok) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });

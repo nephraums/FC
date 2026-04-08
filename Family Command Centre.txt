@@ -2,3 +2,9 @@ Family Command Centre
 Supabase
 
 DB PWD - KEG2B82cCRkUeBkJ
+
+NEXT_PUBLIC_SUPABASE_URL=https://vcdrfjdaalojhokeprth.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sb_publishable_eLLNgnFyFXRgwrp0PbXueg_d6oz2kVB
+
+
+Twilio - GCTZFQL5JAXFW7ZCHT3LXYBY

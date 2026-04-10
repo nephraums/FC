@@ -88,16 +88,17 @@ export async function POST(request: Request) {
   const params = parseFormBody(rawBody);
   const signature = request.headers.get("x-twilio-signature") ?? "";
 
-  const publicUrl = process.env.TWILIO_WEBHOOK_PUBLIC_URL;
-  const validationUrl = publicUrl && publicUrl.length > 0 ? publicUrl : request.url;
+  // Standard Twilio POST webhooks use validateRequest(params). Do NOT use
+  // validateRequestWithBody — that is only for URLs that include ?bodySHA256=...
+  const publicUrl = process.env.TWILIO_WEBHOOK_PUBLIC_URL?.trim();
+  const reqUrl = new URL(request.url);
+  const validationUrl =
+    publicUrl && publicUrl.length > 0
+      ? publicUrl.replace(/\/$/, "")
+      : `${reqUrl.origin}${reqUrl.pathname}`;
 
   if (!skipVerify && authToken) {
-    const ok = twilio.validateRequestWithBody(
-      authToken,
-      signature,
-      validationUrl,
-      rawBody,
-    );
+    const ok = twilio.validateRequest(authToken, signature, validationUrl, params);
     if (!ok) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }

@@ -37,6 +37,24 @@ export function mapFamilyItem(row: Record<string, unknown>): FamilyItem {
     source: row.source === "whatsapp" ? "whatsapp" : "web",
     whatsapp_from:
       row.whatsapp_from == null ? null : String(row.whatsapp_from),
+    media_urls: (() => {
+      const m = row.media_urls;
+      if (m == null) return null;
+      if (Array.isArray(m)) {
+        return m.filter((x): x is string => typeof x === "string");
+      }
+      if (typeof m === "string") {
+        try {
+          const parsed: unknown = JSON.parse(m);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((x): x is string => typeof x === "string");
+          }
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    })(),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };

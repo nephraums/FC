@@ -25,6 +25,8 @@ export type FamilyItem = {
   created_by: string | null;
   source: "web" | "whatsapp";
   whatsapp_from: string | null;
+  /** Public Supabase Storage URLs for images (e.g. from WhatsApp). */
+  media_urls: string[] | null;
   created_at: string;
   updated_at: string;
 };

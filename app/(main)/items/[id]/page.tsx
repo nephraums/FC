@@ -117,6 +117,25 @@ export default async function ItemDetailPage({
         </pre>
       </section>
 
+      {item.media_urls && item.media_urls.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Photos
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {item.media_urls.map((url) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={url}
+                src={url}
+                alt=""
+                className="max-h-80 w-full rounded-lg border border-zinc-200 object-contain dark:border-zinc-700"
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {(item.occurs_at || item.due_at) && (
         <section className="text-sm text-zinc-600 dark:text-zinc-400">
           {item.occurs_at ? (

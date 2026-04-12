@@ -1,7 +1,9 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import twilio from "twilio";
 import { getPublicEnv } from "@/lib/env";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { uploadTwilioMediaToStorage } from "@/lib/whatsapp-media";
 import type { FamilyItemKind } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -83,8 +85,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  // Parse form body ourselves so we can validate against Twilio's signature using raw body.
-  // Twilio signatures are sensitive to exact decoding; validateRequestWithBody avoids mismatch.
   const params = parseFormBody(rawBody);
   const signature = request.headers.get("x-twilio-signature") ?? "";
 
@@ -106,6 +106,10 @@ export async function POST(request: Request) {
 
   const from = params.From ?? "";
   const bodyText = (params.Body ?? "").trim();
+  const numMedia = Math.min(
+    10,
+    Math.max(0, Number.parseInt(params.NumMedia ?? "0", 10) || 0),
+  );
 
   if (!from || !from.startsWith("whatsapp:")) {
     return emptyTwiML();
@@ -124,9 +128,18 @@ export async function POST(request: Request) {
     }
   }
 
-  if (!bodyText) {
+  if (!bodyText && numMedia === 0) {
     return emptyTwiML();
   }
+
+  if (numMedia > 0 && !authToken) {
+    return NextResponse.json(
+      { error: "TWILIO_AUTH_TOKEN is required to fetch WhatsApp media." },
+      { status: 503 },
+    );
+  }
+
+  const twilioAuthToken = authToken as string | undefined;
 
   let supabase;
   try {
@@ -136,10 +149,69 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 503 });
   }
 
+  const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
+  if (numMedia > 0 && !accountSid) {
+    return NextResponse.json(
+      { error: "TWILIO_ACCOUNT_SID is not configured." },
+      { status: 503 },
+    );
+  }
+
   const { NEXT_PUBLIC_FAMILY_ID } = getPublicEnv();
-  const { kind, body, title } = parseKindAndBody(bodyText);
+  const textForParse = bodyText.length > 0 ? bodyText : "(Photo)";
+  const { kind, body, title } = parseKindAndBody(textForParse);
+
+  const itemId = randomUUID();
+  const mediaUrls: string[] = [];
+
+  function mediaExtFromTypes(declared: string, fetchedContentType: string): string {
+    const t = `${declared} ${fetchedContentType}`.toLowerCase();
+    if (t.includes("png")) return "png";
+    if (t.includes("webp")) return "webp";
+    if (t.includes("gif")) return "gif";
+    if (t.includes("heic") || t.includes("heif")) return "heic";
+    if (t.includes("jpeg") || t.includes("jpg")) return "jpg";
+    return "jpg";
+  }
+
+  for (let i = 0; i < numMedia; i++) {
+    const mediaUrl = params[`MediaUrl${i}`];
+    const declaredType = (params[`MediaContentType${i}`] ?? "").trim();
+    if (!mediaUrl) {
+      continue;
+    }
+    // Twilio sometimes omits type or sends application/octet-stream. Skip known non-images.
+    if (declaredType) {
+      if (declaredType.startsWith("video/") || declaredType.startsWith("audio/")) {
+        continue;
+      }
+      const allowEmptyOrImage =
+        declaredType.startsWith("image/") ||
+        declaredType === "application/octet-stream";
+      const blockDoc =
+        declaredType === "application/pdf" || declaredType.startsWith("text/");
+      if (blockDoc || (!allowEmptyOrImage && declaredType.startsWith("application/"))) {
+        continue;
+      }
+    }
+
+    const pathPrefix = `whatsapp/${NEXT_PUBLIC_FAMILY_ID}/${itemId}/${i}`;
+    const publicUrl = await uploadTwilioMediaToStorage({
+      supabase,
+      accountSid: accountSid!,
+      authToken: twilioAuthToken!,
+      mediaUrl,
+      pathPrefix,
+      declaredContentType: declaredType,
+      extFromTypes: mediaExtFromTypes,
+    });
+    if (publicUrl) {
+      mediaUrls.push(publicUrl);
+    }
+  }
 
   const { error } = await supabase.from("family_items").insert({
+    id: itemId,
     family_id: NEXT_PUBLIC_FAMILY_ID,
     kind,
     title,
@@ -148,6 +220,7 @@ export async function POST(request: Request) {
     created_by: null,
     source: "whatsapp",
     whatsapp_from: from,
+    media_urls: mediaUrls.length > 0 ? mediaUrls : null,
   });
 
   if (error) {
